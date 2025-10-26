@@ -1,0 +1,175 @@
+graph TB
+    subgraph "Client Layer"
+        WEB[Web Browser]
+        MOBILE[Mobile Browser]
+    end
+
+    subgraph "CDN/Edge Layer"
+        VERCEL[Vercel Edge Network]
+        STATIC[Static Assets CDN]
+    end
+
+    subgraph "Frontend - Next.js 14+ App Router"
+        NEXTJS[Next.js Application]
+        PAGES[Page Components]
+        LAYOUTS[Layout Components]
+        
+        subgraph "State Management"
+            RQ[React Query Cache]
+            ZUSTAND[Zustand Global State]
+        end
+        
+        subgraph "UI Layer"
+            SHADCN[ShadCN UI Components]
+            FORMS[React Hook Form]
+        end
+        
+        subgraph "Data Layer"
+            DRIZZLE_CLIENT[Drizzle ORM Client]
+            API_CLIENT[API Client Layer]
+        end
+    end
+
+    subgraph "Backend API Layer"
+        subgraph "Option A: Next.js Server Actions"
+            SA[Server Actions]
+            MIDDLEWARE_SA[Auth Middleware]
+            TENANT_SA[Tenant Context]
+        end
+        
+        subgraph "Option B: FastAPI"
+            FASTAPI[FastAPI Application]
+            ROUTES[API Routes]
+            MIDDLEWARE_FA[Middleware Stack]
+            DEPS[Dependency Injection]
+        end
+    end
+
+    subgraph "Authentication & Authorization"
+        AUTH[Auth Service - Clerk/NextAuth]
+        RBAC[RBAC Engine]
+        TENANT_CTX[Tenant Context Manager]
+    end
+
+    subgraph "Business Logic Layer"
+        subgraph "Core Services"
+            USER_SVC[User Management]
+            CLIENT_SVC[Client Management]
+            JOB_SVC[Job/Workflow Service]
+            BILLING_SVC[Billing Service]
+            SCHEDULE_SVC[Scheduling Service]
+        end
+        
+        subgraph "Supporting Services"
+            NOTIF_SVC[Notification Service]
+            FILE_SVC[File Storage Service]
+            REPORT_SVC[Reporting Service]
+        end
+    end
+
+    subgraph "Data Layer"
+        subgraph "Primary Database"
+            POSTGRES[(PostgreSQL 15+)]
+            
+            subgraph "Tenant Isolation Strategy"
+                TENANT_DB[Tenant Schema/Database]
+                RLS[Row Level Security]
+            end
+        end
+        
+        subgraph "Caching Layer"
+            REDIS[(Redis Cache)]
+        end
+        
+        subgraph "File Storage"
+            S3[S3/R2 Object Storage]
+        end
+        
+        subgraph "Search"
+            TYPESENSE[Typesense/Meilisearch]
+        end
+    end
+
+    subgraph "Background Jobs"
+        QUEUE[Job Queue - BullMQ/Celery]
+        WORKERS[Background Workers]
+        CRON[Scheduled Jobs]
+    end
+
+    subgraph "External Services"
+        EMAIL[Email Service - Resend]
+        SMS[SMS - Twilio]
+        PAYMENT[Stripe/Payment Gateway]
+        MAPS[Google Maps API]
+    end
+
+    subgraph "Monitoring & Observability"
+        LOGS[Logging - Axiom/Datadog]
+        METRICS[Metrics - Prometheus]
+        TRACES[Tracing - OpenTelemetry]
+        ERRORS[Error Tracking - Sentry]
+    end
+
+    %% Connections
+    WEB --> VERCEL
+    MOBILE --> VERCEL
+    VERCEL --> NEXTJS
+    
+    NEXTJS --> PAGES
+    NEXTJS --> LAYOUTS
+    PAGES --> SHADCN
+    PAGES --> RQ
+    PAGES --> DRIZZLE_CLIENT
+    
+    DRIZZLE_CLIENT --> SA
+    DRIZZLE_CLIENT --> FASTAPI
+    API_CLIENT --> FASTAPI
+    
+    SA --> AUTH
+    FASTAPI --> AUTH
+    
+    AUTH --> TENANT_CTX
+    TENANT_CTX --> RBAC
+    
+    SA --> USER_SVC
+    SA --> CLIENT_SVC
+    SA --> JOB_SVC
+    SA --> BILLING_SVC
+    
+    FASTAPI --> USER_SVC
+    FASTAPI --> CLIENT_SVC
+    FASTAPI --> JOB_SVC
+    FASTAPI --> BILLING_SVC
+    
+    USER_SVC --> POSTGRES
+    CLIENT_SVC --> POSTGRES
+    JOB_SVC --> POSTGRES
+    BILLING_SVC --> POSTGRES
+    SCHEDULE_SVC --> POSTGRES
+    
+    JOB_SVC --> REDIS
+    BILLING_SVC --> REDIS
+    
+    FILE_SVC --> S3
+    
+    CLIENT_SVC --> TYPESENSE
+    JOB_SVC --> TYPESENSE
+    
+    BILLING_SVC --> QUEUE
+    NOTIF_SVC --> QUEUE
+    QUEUE --> WORKERS
+    
+    NOTIF_SVC --> EMAIL
+    NOTIF_SVC --> SMS
+    BILLING_SVC --> PAYMENT
+    JOB_SVC --> MAPS
+    
+    NEXTJS --> LOGS
+    FASTAPI --> LOGS
+    NEXTJS --> ERRORS
+    FASTAPI --> ERRORS
+
+    style NEXTJS fill:#0070f3
+    style POSTGRES fill:#336791
+    style REDIS fill:#dc382d
+    style FASTAPI fill:#009688

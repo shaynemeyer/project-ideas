@@ -1,0 +1,318 @@
+erDiagram
+    %% Core Tenant & User Management
+    
+    TENANTS ||--o{ USERS : "has"
+    TENANTS ||--o{ CLIENTS : "has"
+    TENANTS ||--o{ JOBS : "has"
+    TENANTS ||--o{ INVOICES : "has"
+    TENANTS ||--o{ SUBSCRIPTION : "has"
+    TENANTS ||--o{ SETTINGS : "has"
+    
+    TENANTS {
+        uuid id PK
+        string company_name
+        string slug "unique, url-friendly"
+        string domain "optional custom domain"
+        enum status "active, suspended, trial"
+        jsonb settings
+        timestamp created_at
+        timestamp updated_at
+        timestamp trial_ends_at
+    }
+    
+    SUBSCRIPTION {
+        uuid id PK
+        uuid tenant_id FK
+        enum plan "starter, professional, enterprise"
+        enum status "active, cancelled, past_due"
+        int user_limit
+        int client_limit
+        decimal price
+        timestamp current_period_start
+        timestamp current_period_end
+        string stripe_subscription_id
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    USERS {
+        uuid id PK
+        uuid tenant_id FK
+        string email "unique per tenant"
+        string full_name
+        string phone
+        enum role "owner, admin, manager, crew_member"
+        jsonb permissions
+        string avatar_url
+        boolean is_active
+        timestamp last_login_at
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% Client Management
+    
+    CLIENTS ||--o{ PROPERTIES : "has"
+    CLIENTS ||--o{ JOBS : "has"
+    CLIENTS ||--o{ INVOICES : "receives"
+    CLIENTS ||--o{ CONTACTS : "has"
+    
+    CLIENTS {
+        uuid id PK
+        uuid tenant_id FK
+        string client_name
+        string email
+        string phone
+        string company_name "optional"
+        enum client_type "residential, commercial"
+        enum status "active, inactive, archived"
+        text notes
+        jsonb metadata
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    PROPERTIES {
+        uuid id PK
+        uuid tenant_id FK
+        uuid client_id FK
+        string property_name
+        text address
+        jsonb location_coordinates
+        decimal lot_size
+        decimal lawn_size
+        jsonb features "trees, sprinklers, etc"
+        text access_notes
+        text special_instructions
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    CONTACTS {
+        uuid id PK
+        uuid client_id FK
+        string name
+        string email
+        string phone
+        enum type "primary, billing, site"
+        boolean is_primary
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% Job & Workflow Management
+    
+    JOBS ||--o{ JOB_TASKS : "contains"
+    JOBS ||--|| PROPERTIES : "performed_at"
+    JOBS }o--o{ USERS : "assigned_to via JOB_ASSIGNMENTS"
+    JOBS ||--o{ JOB_VISITS : "has"
+    JOBS ||--o{ JOB_ATTACHMENTS : "has"
+    
+    JOBS {
+        uuid id PK
+        uuid tenant_id FK
+        uuid client_id FK
+        uuid property_id FK
+        string job_number "auto-generated"
+        enum job_type "maintenance, installation, repair, seasonal"
+        string title
+        text description
+        enum status "draft, scheduled, in_progress, completed, cancelled"
+        enum priority "low, medium, high, urgent"
+        date scheduled_date
+        time scheduled_time
+        int estimated_duration_minutes
+        decimal estimated_cost
+        decimal actual_cost
+        timestamp started_at
+        timestamp completed_at
+        uuid created_by FK
+        jsonb custom_fields
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    JOB_ASSIGNMENTS {
+        uuid id PK
+        uuid job_id FK
+        uuid user_id FK
+        enum role "lead, crew_member"
+        timestamp assigned_at
+    }
+    
+    JOB_TASKS {
+        uuid id PK
+        uuid job_id FK
+        string title
+        text description
+        enum status "pending, in_progress, completed, skipped"
+        int order_index
+        boolean is_required
+        timestamp completed_at
+        uuid completed_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    JOB_VISITS {
+        uuid id PK
+        uuid job_id FK
+        date visit_date
+        time start_time
+        time end_time
+        int duration_minutes
+        enum status "scheduled, completed, cancelled"
+        text notes
+        jsonb weather_conditions
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    JOB_ATTACHMENTS {
+        uuid id PK
+        uuid job_id FK
+        enum type "photo, document, signature"
+        string file_name
+        string file_url
+        string file_type
+        int file_size
+        text description
+        uuid uploaded_by FK
+        timestamp created_at
+    }
+    
+    %% Scheduling & Routes
+    
+    SCHEDULES ||--o{ JOBS : "includes"
+    USERS ||--o{ SCHEDULES : "has"
+    
+    SCHEDULES {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK "crew member or team"
+        date schedule_date
+        time start_time
+        time end_time
+        jsonb route_order "array of job_ids"
+        decimal total_distance
+        int total_duration_minutes
+        enum status "draft, published, completed"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% Billing & Invoicing
+    
+    INVOICES ||--o{ INVOICE_LINE_ITEMS : "contains"
+    INVOICES ||--o{ PAYMENTS : "receives"
+    INVOICES }o--|| JOBS : "for"
+    
+    INVOICES {
+        uuid id PK
+        uuid tenant_id FK
+        uuid client_id FK
+        uuid job_id FK "optional"
+        string invoice_number "auto-generated"
+        date issue_date
+        date due_date
+        enum status "draft, sent, paid, overdue, cancelled"
+        decimal subtotal
+        decimal tax_rate
+        decimal tax_amount
+        decimal discount_amount
+        decimal total_amount
+        decimal amount_paid
+        text notes
+        text terms
+        timestamp sent_at
+        timestamp paid_at
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    INVOICE_LINE_ITEMS {
+        uuid id PK
+        uuid invoice_id FK
+        string description
+        decimal quantity
+        decimal unit_price
+        decimal amount
+        int order_index
+        timestamp created_at
+    }
+    
+    PAYMENTS {
+        uuid id PK
+        uuid tenant_id FK
+        uuid invoice_id FK
+        decimal amount
+        enum payment_method "cash, check, card, ach, other"
+        string transaction_id
+        date payment_date
+        text notes
+        uuid recorded_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% Service Catalog
+    
+    SERVICES {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        text description
+        enum category "lawn_care, landscaping, hardscape, seasonal"
+        decimal default_price
+        string unit "per_hour, per_sqft, per_visit, flat_rate"
+        boolean is_active
+        jsonb custom_fields
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% Equipment & Materials
+    
+    EQUIPMENT {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string make_model
+        string serial_number
+        date purchase_date
+        decimal purchase_cost
+        enum status "available, in_use, maintenance, retired"
+        timestamp last_maintenance
+        timestamp next_maintenance_due
+        text notes
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    MATERIALS {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string sku
+        enum category "fertilizer, mulch, plants, hardscape"
+        string unit "bag, cubic_yard, each"
+        decimal quantity_on_hand
+        decimal reorder_point
+        decimal unit_cost
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% Activity Log
+    
+    ACTIVITY_LOG {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK "who did it"
+        string entity_type "job, client, invoice"
+        uuid entity_id
+        enum action "created, updated, deleted, status_changed"
+        jsonb changes "before/after values"
+        string ip_address
+        timestamp created_at
+    }

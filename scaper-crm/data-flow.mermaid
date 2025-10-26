@@ -1,0 +1,102 @@
+sequenceDiagram
+    participant User as User Browser
+    participant Next as Next.js Frontend
+    participant Auth as Auth Service
+    participant API as API Layer
+    participant TenantCtx as Tenant Context
+    participant BizLogic as Business Logic
+    participant DB as PostgreSQL
+    participant Cache as Redis Cache
+    participant Queue as Job Queue
+
+    Note over User,Queue: User Login Flow
+    User->>Next: Access App
+    Next->>Auth: Check Authentication
+    Auth-->>Next: Redirect to Login
+    User->>Auth: Enter Credentials
+    Auth->>DB: Validate User & Tenant
+    DB-->>Auth: User + Tenant Data
+    Auth->>Cache: Cache Session + Tenant ID
+    Auth-->>User: Set Auth Cookie + Tenant Context
+
+    Note over User,Queue: Typical API Request Flow with Tenant Isolation
+    
+    User->>Next: View Clients List
+    Next->>API: GET /api/clients (with auth token)
+    
+    API->>Auth: Validate Token
+    Auth->>Cache: Get Session
+    Cache-->>Auth: Session + Tenant ID
+    Auth-->>API: User + Tenant Context
+    
+    API->>TenantCtx: Set Tenant Context (tenant_id: uuid)
+    TenantCtx-->>API: Context Set
+    
+    API->>BizLogic: GetClients(tenant_id, user_permissions)
+    BizLogic->>Cache: Check Cache
+    
+    alt Cache Hit
+        Cache-->>BizLogic: Cached Client List
+    else Cache Miss
+        BizLogic->>DB: SELECT * FROM clients WHERE tenant_id = $1
+        Note over DB: RLS ensures tenant isolation
+        DB-->>BizLogic: Client Records
+        BizLogic->>Cache: Store in Cache
+    end
+    
+    BizLogic-->>API: Filtered Client List
+    API-->>Next: JSON Response
+    Next-->>User: Render UI
+
+    Note over User,Queue: Creating a New Job (Write Operation)
+    
+    User->>Next: Submit New Job Form
+    Next->>API: POST /api/jobs (job data + auth)
+    
+    API->>Auth: Validate Token & Permissions
+    Auth-->>API: User Context (role: manager)
+    
+    API->>TenantCtx: Verify Tenant Context
+    API->>BizLogic: CreateJob(tenant_id, user_id, job_data)
+    
+    BizLogic->>DB: BEGIN TRANSACTION
+    BizLogic->>DB: INSERT INTO jobs (tenant_id, ...)
+    DB-->>BizLogic: Job Created (id: uuid)
+    
+    BizLogic->>DB: INSERT INTO job_tasks (job_id, ...)
+    DB-->>BizLogic: Tasks Created
+    
+    BizLogic->>DB: INSERT INTO activity_log
+    DB-->>BizLogic: Activity Logged
+    
+    BizLogic->>DB: COMMIT TRANSACTION
+    
+    BizLogic->>Cache: Invalidate Related Caches
+    BizLogic->>Queue: Enqueue(send_notification, job_id)
+    
+    BizLogic-->>API: Job Created Successfully
+    API-->>Next: 201 Created Response
+    Next-->>User: Show Success Message
+
+    Note over User,Queue: Background Job Processing
+    
+    Queue->>Queue: Worker Picks Up Job
+    Queue->>BizLogic: ProcessNotification(job_id)
+    BizLogic->>DB: Get Job Details (with tenant_id)
+    DB-->>BizLogic: Job Data
+    BizLogic->>BizLogic: Format Notification
+    BizLogic->>Queue: Send to Email Service
+    Queue-->>Queue: Job Complete
+
+    Note over User,Queue: Tenant Switching (Multi-tenant Admin)
+    
+    User->>Next: Switch Tenant (admin only)
+    Next->>API: POST /api/admin/switch-tenant
+    API->>Auth: Validate Super Admin
+    Auth-->>API: Authorized
+    API->>TenantCtx: Switch Context (new_tenant_id)
+    TenantCtx->>Cache: Update Session Tenant
+    TenantCtx-->>API: Context Switched
+    API-->>Next: New Tenant Context
+    Next->>Cache: Clear Frontend Cache
+    Next-->>User: Reload with New Tenant Data
