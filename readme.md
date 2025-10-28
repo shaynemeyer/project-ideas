@@ -4,6 +4,19 @@ A collection of software project ideas in various stages of planning and design.
 
 ## Projects
 
+### [SSL Certificate Tracker](cert-tracker/)
+**Status**: Planning | **Type**: Production SaaS Application | **Technology**: Next.js 14+, PostgreSQL, TypeScript
+
+A production web application for monitoring SSL certificate expiration dates across multiple domains with automated checking and multi-channel alerting.
+
+**Key Features**:
+- Automated daily certificate expiration checks
+- Multi-channel alerting (Email, Slack, Webhooks)
+- Role-based access control (Admin, Editor, Viewer)
+- Configurable alert thresholds (default: 30, 14, 7, 1 days)
+- Comprehensive audit trail for all certificate checks
+- Real-time dashboard with certificate status monitoring
+
 ### [Fictional Airline Database](fictional_airline/)
 **Status**: Planning | **Type**: Academic Database Design | **Technology**: PostgreSQL
 
@@ -17,7 +30,7 @@ A comprehensive relational database design for "Anchor Air", a fictional US dome
 - Airport gate capacity management
 
 ### [Landscaping CRM SaaS](scaper-crm/)
-**Status**: Planning | **Type**: Production SaaS Application | **Technology**: Next.js, PostgreSQL
+**Status**: Planning | **Type**: Production SaaS Application | **Technology**: Next.js 14+, PostgreSQL
 
 A modern multi-tenant SaaS CRM system designed for landscaping companies to manage clients, properties, jobs, scheduling, and invoicing.
 
@@ -43,6 +56,11 @@ Each project has its own detailed documentation:
 project-ideas/
 ├── CLAUDE.md              # Repository-wide development guidance
 ├── readme.md              # This file
+├── cert-tracker/          # SSL Certificate monitoring system
+│   ├── CLAUDE.md
+│   └── diagrams/          # 12 Mermaid architecture diagrams
+│       ├── README.md
+│       └── *.md
 ├── fictional_airline/     # Airline database design project
 │   ├── CLAUDE.md
 │   ├── README.md
